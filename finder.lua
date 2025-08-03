@@ -1,62 +1,51 @@
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
 
--- === CONFIG ===
+-- === CONFIGURATION ===
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1401675657896923276/OAJ7yuun484AbREmJftg4AtY4S-O6oFMcPQL8ZVlyDcrNm1cqnvV8i11eX0G4jja1KQN"
-local VALUE_THRESHOLD = 100000
+local VALUE_THRESHOLD = 1000000 -- 1 million
 
--- === GUI ===
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "MobileItemGUI"
+-- === GUI SETUP ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ItemListGui"
 screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0.9, 0, 0.6, 0)
-mainFrame.Position = UDim2.new(0.05, 0, 0.2, 0)
+mainFrame.Size = UDim2.new(0, 500, 0, 400)
+mainFrame.Position = UDim2.new(0, 50, 0, 100)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
 mainFrame.Parent = screenGui
 
-local titleBar = Instance.new("Frame", mainFrame)
-titleBar.Size = UDim2.new(1, 0, 0, 40)
-titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-
-local titleLabel = Instance.new("TextLabel", titleBar)
-titleLabel.Size = UDim2.new(1, -40, 1, 0)
-titleLabel.Position = UDim2.new(0, 10, 0, 0)
-titleLabel.Text = "📱 Server Items"
-titleLabel.Font = Enum.Font.SourceSansBold
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+titleLabel.Text = "🧾 Server Item List"
 titleLabel.TextColor3 = Color3.new(1, 1, 1)
-titleLabel.TextSize = 22
-titleLabel.BackgroundTransparency = 1
-titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 24
+titleLabel.Parent = mainFrame
 
-local toggleButton = Instance.new("TextButton", titleBar)
-toggleButton.Size = UDim2.new(0, 40, 1, 0)
-toggleButton.Position = UDim2.new(1, -40, 0, 0)
-toggleButton.Text = "-"
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.TextSize = 24
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
-toggleButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(1, -20, 1, -60)
+scrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+scrollingFrame.BackgroundTransparency = 1
+scrollingFrame.ScrollBarThickness = 8
+scrollingFrame.BorderSizePixel = 0
+scrollingFrame.Parent = mainFrame
 
-local scrollFrame = Instance.new("ScrollingFrame", mainFrame)
-scrollFrame.Position = UDim2.new(0, 10, 0, 50)
-scrollFrame.Size = UDim2.new(1, -20, 1, -60)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollFrame.ScrollBarThickness = 8
-scrollFrame.BackgroundTransparency = 1
+local uiListLayout = Instance.new("UIListLayout", scrollingFrame)
+uiListLayout.Padding = UDim.new(0, 4)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 
-local layout = Instance.new("UIListLayout", scrollFrame)
-layout.Padding = UDim.new(0, 4)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-
--- === Logic ===
-local sentItems = {}
-local currentItems = {}
-
+-- === FUNCTION TO GET ITEMS ===
 local function getAllItems()
 	local items = {}
 	for _, obj in pairs(workspace:GetDescendants()) do
@@ -67,78 +56,62 @@ local function getAllItems()
 			end
 		end
 	end
-	table.sort(items, function(a, b)
-		return a.value > b.value
-	end)
 	return items
 end
 
+-- === FUNCTION TO UPDATE GUI ===
 local function updateGUI(items)
-	currentItems = items
-	for _, child in pairs(scrollFrame:GetChildren()) do
-		if child:IsA("TextLabel") then child:Destroy() end
+	for _, child in pairs(scrollingFrame:GetChildren()) do
+		if child:IsA("TextLabel") then
+			child:Destroy()
+		end
 	end
+
 	for _, item in ipairs(items) do
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.new(1, -10, 0, 30)
 		label.BackgroundTransparency = 1
 		label.TextXAlignment = Enum.TextXAlignment.Left
 		label.Font = Enum.Font.SourceSans
-		label.TextSize = 20
-		label.TextColor3 = item.value >= VALUE_THRESHOLD and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(230, 230, 230)
+		label.TextSize = 22
+		label.TextColor3 = item.value >= VALUE_THRESHOLD and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(220, 220, 220)
 		label.Text = item.name .. " - $" .. tostring(item.value)
-		label.Parent = scrollFrame
+		label.Parent = scrollingFrame
 	end
-	task.wait()
-	scrollFrame.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+
+	wait()
+	scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y + 10)
 end
+
+-- === FUNCTION TO SEND WEBHOOK ===
+local sentItems = {}
 
 local function sendWebhook(items)
 	for _, item in ipairs(items) do
 		if item.value >= VALUE_THRESHOLD and not sentItems[item.name] then
 			local data = {
 				["embeds"] = {{
-					["title"] = "💰 High-Value Item Found!",
+					["title"] = "💰 High-Value Item Detected!",
 					["description"] = "**" .. item.name .. "** - $" .. tostring(item.value),
 					["color"] = 0x00FF00,
 					["footer"] = {["text"] = "Server ID: " .. game.JobId}
 				}}
 			}
+
 			local success, err = pcall(function()
 				HttpService:PostAsync(WEBHOOK_URL, HttpService:JSONEncode(data), Enum.HttpContentType.ApplicationJson)
 			end)
+
 			if success then
 				sentItems[item.name] = true
 			else
-				warn("Webhook error:", err)
+				warn("Webhook Error:", err)
 			end
 		end
 	end
 end
 
--- === Toggle Hide ===
-toggleButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-
-	local toggleGui = Instance.new("ScreenGui", player.PlayerGui)
-	toggleGui.Name = "ToggleBackGui"
-
-	local showBtn = Instance.new("TextButton", toggleGui)
-	showBtn.Size = UDim2.new(0, 160, 0, 40)
-	showBtn.Position = UDim2.new(0, 20, 0, 100)
-	showBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-	showBtn.Text = "📋 Show Item List"
-	showBtn.Font = Enum.Font.SourceSansBold
-	showBtn.TextSize = 20
-	showBtn.TextColor3 = Color3.new(1, 1, 1)
-
-	showBtn.MouseButton1Click:Connect(function()
-		mainFrame.Visible = true
-		toggleGui:Destroy()
-	end)
-end)
-
--- === Main Loop ===
+-- === MAIN LOOP ===
 while true do
 	local items = getAllItems()
 	updateGUI(items)
