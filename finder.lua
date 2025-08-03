@@ -5,7 +5,7 @@ local UIS = game:GetService("UserInputService")
 
 -- === CONFIG ===
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1401675657896923276/OAJ7yuun484AbREmJftg4AtY4S-O6oFMcPQL8ZVlyDcrNm1cqnvV8i11eX0G4jja1KQN"
-local VALUE_THRESHOLD = 10000000
+local VALUE_THRESHOLD = 100000
 
 -- === GUI ===
 local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
